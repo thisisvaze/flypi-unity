@@ -1,0 +1,2 @@
+We are buidling a tool for students to learn about electronics. Our idea is that user can sketch a simple electronic cirucit on a piece of paper with pen using a Meta Quest 3 headset and llama brings
+up an interactive 3d model of that circuit and also user can play with it to learn and explore electronics.
