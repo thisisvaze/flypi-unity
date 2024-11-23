@@ -5,6 +5,7 @@ using System.Linq;
 using System;
 using Anaglyph.DisplayCapture;
 using System.Collections;
+
 public class ActionManager : MonoBehaviour
 {
     private APIManager apiManager;
@@ -45,56 +46,70 @@ public class ActionManager : MonoBehaviour
             }
         ));
     }
-void AddScreenshotToContext(ConversationState state)
-{
-    try {
-        // Get screenshot texture reference (this is fast)
-        Texture2D screenTexture = DisplayCaptureManager.Instance.ScreenCaptureTexture;
-        
-        // Start a coroutine to handle the expensive operations
-        StartCoroutine(ProcessScreenshotAsync(screenTexture, base64String => {
-            // Update the context once we have the base64 string
+
+    void AddScreenshotToContext(ConversationState state)
+    {
+        try {
+            // Get screenshot texture reference
+            Texture2D screenTexture = DisplayCaptureManager.Instance.ScreenCaptureTexture;
+            string base64String = ProcessScreenshot(screenTexture);
+            
+            // Update the context with the screenshot
             if (state.current_state.sketch_context == null)
             {
                 state.current_state.sketch_context = new SketchContext();
             }
+            
+            // If we got an empty string or null, use sample moon
+            base64String = string.IsNullOrEmpty(base64String) ? SampleImageB64.Sample : base64String;
             state.current_state.sketch_context.screenshot = base64String;
-            Debug.Log("Screenshot added to context: " + base64String);
+            Debug.Log("Screenshot added to context");
             
             // Now that we have the screenshot, proceed with sending the request
-            SendRequestToServer();
-        }));
-    }
-    catch(Exception e) {
-        string screenshotBase64 = SampleImageB64.SampleMoon;  // Initialize the variable
-        Debug.LogError("Error adding screenshot to context: " + e.Message);
-        
-        // Handle error case synchronously
-        if (state.current_state.sketch_context == null)
-        {
-            state.current_state.sketch_context = new SketchContext();
+            //SendRequestToServer();
         }
-        state.current_state.sketch_context.screenshot = screenshotBase64;
-        Debug.Log("Screenshot added to context: " + screenshotBase64);
+        catch(Exception e) {
+            Debug.LogError("Error adding screenshot to context: " + e.Message);
+            
+            // Handle error case with sample moon image
+            if (state.current_state.sketch_context == null)
+            {
+                state.current_state.sketch_context = new SketchContext();
+            }
+            state.current_state.sketch_context.screenshot = SampleImageB64.Sample;
+            Debug.Log("Using sample moon image as fallback");
+        }
     }
-}
 
-private IEnumerator ProcessScreenshotAsync(Texture2D texture, Action<string> onComplete)
-{
-    // Move to end of frame to not block main thread
-    yield return new WaitForEndOfFrame();
-    
-    // Do expensive operations
-    byte[] bytes = texture.EncodeToPNG();
-    string base64String = System.Convert.ToBase64String(bytes);
-    
-    // Call the completion handler with the result
-    onComplete(base64String);
-} 
-
-    void SendRequestToServer()
+    private string ProcessScreenshot(Texture2D texture)
     {
-        AddScreenshotToContext(conversationState);
+        if (texture == null) return null;
+        
+        try {
+            byte[] bytes = texture.EncodeToPNG();
+            return System.Convert.ToBase64String(bytes);
+        }
+        catch (Exception e) {
+            Debug.LogError("Error processing screenshot: " + e.Message);
+            return null;
+        }
+    }
+
+
+    void OnEnable()
+    {
+        EventManager.StartListening(EventList.OnCameraCaptureRequest, OnCameraCaptureRequest);
+    }
+
+    void OnDisable()
+    {
+        EventManager.StopListening(EventList.OnCameraCaptureRequest, OnCameraCaptureRequest);
+    }
+
+    void OnCameraCaptureRequest(string message)
+    {
+        // Debug.Log("OnCameraCaptureRequest: " + message[:10]);
+       AddScreenshotToContext(conversationState);
         StartCoroutine(apiManager.SendSketchTo3DRequest(conversationState.current_state, 
             sketchTo3DResponse => {
                 if (sketchTo3DResponse != null)
@@ -111,35 +126,18 @@ private IEnumerator ProcessScreenshotAsync(Texture2D texture, Action<string> onC
     }
 
 
-    void OnEnable()
+
+    private void OnSketchTo3DResponseReceived(SketchTo3DResponseAction actions)
     {
-        EventManager.StartListening(EventList.OnCameraCaptureRequest, OnCameraCaptureRequest);
-    }
+        if (actions != null)
+        { 
 
-    void OnDisable()
-    {
-        EventManager.StopListening(EventList.OnCameraCaptureRequest, OnCameraCaptureRequest);
-    }
-
-void OnCameraCaptureRequest(string message)
-{
-   // Debug.Log("OnCameraCaptureRequest: " + message[:10]);
-    SendRequestToServer();
-}
-
-
-
-private void OnSketchTo3DResponseReceived(SketchTo3DResponseAction actions)
-{
-    if (actions != null)
-    { 
-
-        if (actions.CREATE_3D_MODEL.Count > 0)
-        {
-            ManageInteractiveAssets.Instance.Create3DModels(actions.CREATE_3D_MODEL);
+            if (actions.CREATE_3D_MODEL.Count > 0)
+            {
+                ManageInteractiveAssets.Instance.Create3DModels(actions.CREATE_3D_MODEL);
+            }
+            
+            
         }
-        
-        
     }
-}
 }

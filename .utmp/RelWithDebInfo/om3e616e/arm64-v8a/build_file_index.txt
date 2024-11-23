@@ -1,0 +1,2 @@
+C:\Users\acela\Desktop\vaze\flypi-unity\My project\Library\Bee\Android\Prj\IL2CPP\Gradle\unityLibrary\src\main\cpp\CMakeLists.txt
+C:\Users\acela\Desktop\vaze\flypi-unity\My project\Library\Bee\Android\Prj\IL2CPP\Gradle\unityLibrary\src\main\cpp\GameActivity\CMakeLists.txt

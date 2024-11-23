@@ -14,9 +14,9 @@ public class FlyPiConfig : MonoBehaviour
 
     public bool is_processing_request = false;
 
-    public string api_url = "http://192.168.0.27:8000/";
+    public string api_url = "http://localhost:8000/";
 
-    private const string SKETCH_TO_3D_ENDPOINT = "api/v1/circuit_from_sketch";
+    private const string SKETCH_TO_3D_ENDPOINT = "api/v1/retrieve-circuit-schema-test";
 
     public string SKETCH_TO_3D_URL => api_url + SKETCH_TO_3D_ENDPOINT;
 

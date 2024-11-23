@@ -5,6 +5,8 @@ using UnityEngine;
 using UnityEngine.Networking;
 using System.Text;
 
+
+
 public class APIManager
 {
     private string API_URL => FlyPiConfig.Instance.SKETCH_TO_3D_URL;
@@ -20,11 +22,17 @@ public class APIManager
         FlyPiConfig.Instance.is_processing_request = true;
        
 
-        try
+       try
         {
-
-        string jsonInput = JsonUtility.ToJson(input);
-        Debug.Log($"Sending request with data: {jsonInput}");
+            var requestData = new SketchRequestData
+            {
+                image_data = input.current_state.sketch_context.screenshot,
+                content_type = "image/png"
+            };
+            string jsonInput = JsonUtility.ToJson(requestData);
+            
+            // Add this line to log the JSON
+            Debug.Log($"JSON Request: {jsonInput}");
 
         using (UnityWebRequest request = UnityWebRequest.PostWwwForm(API_URL, "POST"))
         {

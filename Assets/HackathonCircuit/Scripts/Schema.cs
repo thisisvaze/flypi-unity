@@ -42,13 +42,7 @@ public class ImageResponseForAgent
     public string description; // Description of the image
 }
 
-// Define the SpeechResponseForAgent class
-[Serializable]
-public class SpeechResponseForAgent
-{
-    public string role; // Role of the speaker (teacher or student)
-    public string content; // Content of the speech
-}
+
 
 [Serializable]
 public class SketchContext
@@ -155,6 +149,12 @@ public class CombinedInput
     public SketchContext sketch_context; // Context of the conversation
 }
 
+[Serializable]
+public class SketchRequestData  // Changed from private to public
+{
+    public string image_data;
+    public string content_type;
+}
 [Serializable]
 public class SnippetCreatorInput
 {
