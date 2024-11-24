@@ -1,6 +1,6 @@
 using UnityEngine;
 using System.Collections.Generic;
-
+using System.Linq;
 class Generate3DCircuitModel : MonoBehaviour
 {
     [System.Serializable]
@@ -30,8 +30,10 @@ class Generate3DCircuitModel : MonoBehaviour
 [SerializeField] private GameObject ledPrefab;
 [SerializeField] private GameObject switchPrefab;
 [SerializeField] private WireManager wireManager;
+ [SerializeField] private CircuitStateManager circuitStateManager;
 
     private Dictionary<string, GameObject> componentInstances = new Dictionary<string, GameObject>();
+    private Dictionary<Transform, bool> usedConnectionPoints = new Dictionary<Transform, bool>();
 
 
 private Vector3[] cornerPositions = new Vector3[4] {
@@ -45,11 +47,20 @@ private int currentCornerIndex = 0;
     
 private void Start()
 {
-    string testJson = @"{
+    string testJson2 = @"{
         ""components"": [
             {""id"": ""comp1"", ""type"": ""battery""},
             {""id"": ""comp2"", ""type"": ""resistor""},
             {""id"": ""comp3"", ""type"": ""switch""}
+        ]
+    }";
+
+     string testJson = @"{
+        ""components"": [
+            {""id"": ""comp1"", ""type"": ""battery""},
+            {""id"": ""comp2"", ""type"": ""resistor""},
+            {""id"": ""comp3"", ""type"": ""switch""},
+            {""id"": ""comp4"", ""type"": ""led""}
         ]
     }";
 
@@ -67,6 +78,7 @@ public void GenerateCircuit(string jsonData)
             Destroy(component);
     }
     componentInstances.Clear();
+     usedConnectionPoints.Clear();  
     
     CircuitData circuitData = JsonUtility.FromJson<CircuitData>(jsonData);
     
@@ -110,7 +122,20 @@ public void GenerateCircuit(string jsonData)
         
         CreateWireConnection(currentComponent, nextComponent);
     }
-}
+
+      // After creating all components, initialize CircuitStateManager
+        GameObject led = componentInstances.Values.FirstOrDefault(c => c.name.Contains("led"));
+        GameObject switchObj = componentInstances.Values.FirstOrDefault(c => c.name.Contains("switch"));
+        
+        if (circuitStateManager != null)
+        {
+            circuitStateManager.Initialize(led, switchObj);
+        }
+    }
+
+
+
+
 private void CreateWireConnection(GameObject from, GameObject to)
 {
     Debug.Log($"Attempting to create wire from {from.name} to {to.name}");
@@ -121,7 +146,7 @@ private void CreateWireConnection(GameObject from, GameObject to)
         return;
     }
 
-     // Get all possible connection points
+    // Get all possible connection points
     Transform fromEnd1 = from.transform.Find("End1");
     Transform fromEnd2 = from.transform.Find("End2");
     Transform toEnd1 = to.transform.Find("End1");
@@ -133,36 +158,68 @@ private void CreateWireConnection(GameObject from, GameObject to)
         return;
     }
 
-    // Calculate distances between all possible combinations
-    float dist11 = Vector3.Distance(fromEnd1.position, toEnd1.position);
-    float dist12 = Vector3.Distance(fromEnd1.position, toEnd2.position);
-    float dist21 = Vector3.Distance(fromEnd2.position, toEnd1.position);
-    float dist22 = Vector3.Distance(fromEnd2.position, toEnd2.position);
+    // Initialize connection points in dictionary if not already present
+    if (!usedConnectionPoints.ContainsKey(fromEnd1)) usedConnectionPoints[fromEnd1] = false;
+    if (!usedConnectionPoints.ContainsKey(fromEnd2)) usedConnectionPoints[fromEnd2] = false;
+    if (!usedConnectionPoints.ContainsKey(toEnd1)) usedConnectionPoints[toEnd1] = false;
+    if (!usedConnectionPoints.ContainsKey(toEnd2)) usedConnectionPoints[toEnd2] = false;
 
-    // Find the shortest connection
-    Transform selectedFromEnd;
-    Transform selectedToEnd;
-    
-    if (dist11 <= dist12 && dist11 <= dist21 && dist11 <= dist22)
+    // Find available connection points
+    Transform selectedFromEnd = null;
+    Transform selectedToEnd = null;
+    float shortestDistance = float.MaxValue;
+
+    // Check all possible combinations of unused connection points
+    if (!usedConnectionPoints[fromEnd1] && !usedConnectionPoints[toEnd1])
     {
-        selectedFromEnd = fromEnd1;
-        selectedToEnd = toEnd1;
+        float dist = Vector3.Distance(fromEnd1.position, toEnd1.position);
+        if (dist < shortestDistance)
+        {
+            shortestDistance = dist;
+            selectedFromEnd = fromEnd1;
+            selectedToEnd = toEnd1;
+        }
     }
-    else if (dist12 <= dist21 && dist12 <= dist22)
+    if (!usedConnectionPoints[fromEnd1] && !usedConnectionPoints[toEnd2])
     {
-        selectedFromEnd = fromEnd1;
-        selectedToEnd = toEnd2;
+        float dist = Vector3.Distance(fromEnd1.position, toEnd2.position);
+        if (dist < shortestDistance)
+        {
+            shortestDistance = dist;
+            selectedFromEnd = fromEnd1;
+            selectedToEnd = toEnd2;
+        }
     }
-    else if (dist21 <= dist22)
+    if (!usedConnectionPoints[fromEnd2] && !usedConnectionPoints[toEnd1])
     {
-        selectedFromEnd = fromEnd2;
-        selectedToEnd = toEnd1;
+        float dist = Vector3.Distance(fromEnd2.position, toEnd1.position);
+        if (dist < shortestDistance)
+        {
+            shortestDistance = dist;
+            selectedFromEnd = fromEnd2;
+            selectedToEnd = toEnd1;
+        }
     }
-    else
+    if (!usedConnectionPoints[fromEnd2] && !usedConnectionPoints[toEnd2])
     {
-        selectedFromEnd = fromEnd2;
-        selectedToEnd = toEnd2;
+        float dist = Vector3.Distance(fromEnd2.position, toEnd2.position);
+        if (dist < shortestDistance)
+        {
+            shortestDistance = dist;
+            selectedFromEnd = fromEnd2;
+            selectedToEnd = toEnd2;
+        }
     }
+
+    if (selectedFromEnd == null || selectedToEnd == null)
+    {
+        Debug.LogError($"No available connection points between {from.name} and {to.name}");
+        return;
+    }
+
+    // Mark the selected connection points as used
+    usedConnectionPoints[selectedFromEnd] = true;
+    usedConnectionPoints[selectedToEnd] = true;
 
     // Create wire using WireManager with the closest endpoints
     WireManager.WireEndpoints wire = wireManager.CreateWireWithEndpoints(
@@ -176,6 +233,7 @@ private void CreateWireConnection(GameObject from, GameObject to)
 
     Debug.Log($"Successfully created wire from {from.name} to {to.name}");
 }
+
 
 private GameObject GetPrefabForType(string type)
 {
