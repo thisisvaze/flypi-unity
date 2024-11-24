@@ -10,7 +10,7 @@ using System.Text;
 public class APIManager
 {
     private string API_URL => FlyPiConfig.Instance.SKETCH_TO_3D_URL;
-    private const float REQUEST_TIMEOUT = 10f;
+    private const float REQUEST_TIMEOUT = 20f;
 
     public IEnumerator SendSketchTo3DRequest(ConversationState input, System.Action<SketchTo3DResponse> callback)
     {
